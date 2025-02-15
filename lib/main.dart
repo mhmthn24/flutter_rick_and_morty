@@ -12,6 +12,7 @@ class AnaUygulama extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       home: ListelemeKarakterler(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
