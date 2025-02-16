@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_rick_and_morty/Detay_Karakter.dart';
 import 'package:flutter_rick_and_morty/Karakter.dart';
 import 'package:http/http.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ListelemeKarakterler extends StatefulWidget {
 
@@ -29,15 +30,28 @@ class _ListelemeKarakterlerState extends State<ListelemeKarakterler> {
   TextEditingController _controllerArama = TextEditingController();
 
   List<Karakter> _favoriKarakterler = [];
+  List<String> favorilerShared = [];
+  
+  bool favoriGoster = false;
 
   @override
   void initState() {
     super.initState();
+    /*
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       _apiNext = _apiKey; // İlk API cagrisini baslatalim
       do {
         _apiNext = await _getKarakterler(_apiNext!); // Sonraki sayfayi guncelleyelim
       } while (_apiNext != null); // nextPage null olana kadar devam edelim
+    });
+     */
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _favorileriYukle().then((value) async {
+        _apiNext = _apiKey; // İlk API cagrisini baslatalim
+        do {
+          _apiNext = await _getKarakterler(_apiNext!); // Sonraki sayfayi guncelleyelim
+        } while (_apiNext != null);
+      });
     });
   }
 
@@ -46,6 +60,7 @@ class _ListelemeKarakterlerState extends State<ListelemeKarakterler> {
     return SafeArea(
       child: Scaffold(
         appBar: _buildAppBar(),
+        floatingActionButton: _buildFloatingButton(),
         body: Stack(
           children: [
             Opacity(
@@ -89,30 +104,44 @@ class _ListelemeKarakterlerState extends State<ListelemeKarakterler> {
                 onChanged: _aramaYap,
               ),
             ),
-          IconButton(
-              onPressed: (){
-                setState(() {
-                  aramaAktif = !aramaAktif;
-                  if (aramaAktif){
-                    Future.delayed(Duration(milliseconds: 100), (){
-                      _focusNode.requestFocus();
-                    });
-                  }else{
-                    arananKarakterler.clear();
-                    _controllerArama.clear();
-                    _focusNode.unfocus();
-                  }
-                });
-              },
-              icon: aramaAktif
-                  ? Icon(Icons.cancel_outlined, size: 30,)
-                  : Icon(Icons.search, size: 30,)
-          )
+          if (!favoriGoster)
+            IconButton(
+                onPressed: (){
+                  setState(() {
+                    aramaAktif = !aramaAktif;
+                    if (aramaAktif){
+                      Future.delayed(Duration(milliseconds: 100), (){
+                        _focusNode.requestFocus();
+                      });
+                    }else{
+                      arananKarakterler.clear();
+                      _controllerArama.clear();
+                      _focusNode.unfocus();
+                    }
+                  });
+                },
+                icon: aramaAktif
+                    ? Icon(Icons.cancel_outlined, size: 30,)
+                    : Icon(Icons.search, size: 30,)
+            )
         ],
       ),
     );
   }
-
+  
+  Widget _buildFloatingButton(){
+    return FloatingActionButton(
+      onPressed: (){
+        setState(() {
+          favoriGoster = !favoriGoster;
+        });
+      },
+      child: favoriGoster 
+          ? Icon(Icons.list)
+          : Icon(Icons.favorite),
+    );
+  }
+  
   Widget _buildBody(){
     return _tumKarakterler.length >= 400
         ? Column(
@@ -121,7 +150,9 @@ class _ListelemeKarakterlerState extends State<ListelemeKarakterler> {
               child: ListView.builder(
                 itemCount: aramaAktif
                     ? arananKarakterler.length
-                    : _tumKarakterler.length,
+                    : !favoriGoster
+                      ? _tumKarakterler.length
+                      : _favoriKarakterler.length,
                 itemBuilder: _buildListView
               ),
             ),
@@ -134,6 +165,8 @@ class _ListelemeKarakterlerState extends State<ListelemeKarakterler> {
     List<Karakter>? listeKarakter;
     if (aramaAktif){
      listeKarakter = arananKarakterler;
+    }else if(favoriGoster){
+      listeKarakter = _favoriKarakterler;
     }else{
       listeKarakter = _tumKarakterler;
     }
@@ -203,14 +236,29 @@ class _ListelemeKarakterlerState extends State<ListelemeKarakterler> {
     });
   }
 
-  void _favoriEkleCikar(Karakter karakter){
-    setState(() {
-      if (_favoriKarakterler.contains(karakter)){
-        _favoriKarakterler.remove(karakter);
-      }else{
-        _favoriKarakterler.add(karakter);
+  void _favoriEkleCikar(Karakter karakter) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+
+    if (favorilerShared.contains(karakter.karakter_id.toString())){
+      favorilerShared.remove(karakter.karakter_id.toString());
+      _favoriKarakterler.remove(karakter);
+    }else{
+      favorilerShared.add(karakter.karakter_id.toString());
+      _favoriKarakterler.add(karakter);
+    }
+
+    await prefs.setStringList("favoriler", favorilerShared);
+    setState(() {});
+  }
+
+  Future<void> _favorileriYukle() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String>? favoriler = await prefs.getStringList("favoriler");
+    if(favoriler != null){
+      for(String ulkeKodu in favoriler){
+        favorilerShared.add(ulkeKodu);
       }
-    });
+    }
   }
 
   Future<String?> _getKarakterler(String api) async {
@@ -224,7 +272,11 @@ class _ListelemeKarakterlerState extends State<ListelemeKarakterler> {
       List<dynamic> results = jsonParsed["results"];
 
       for (var karakter in results) {
-        _tumKarakterler.add(Karakter.fromMap(karakter));
+        Karakter kar = Karakter.fromMap(karakter);
+        _tumKarakterler.add(kar);
+        if(favorilerShared.contains(kar.karakter_id.toString())){
+          _favoriKarakterler.add(kar);
+        }
       }
 
       setState(() {}); // UI güncellemesi
@@ -241,4 +293,6 @@ class _ListelemeKarakterlerState extends State<ListelemeKarakterler> {
     });
     Navigator.push(context, gidilecekSayfaYolu);
   }
+
+
 }

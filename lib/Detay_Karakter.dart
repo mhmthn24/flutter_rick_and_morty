@@ -52,6 +52,7 @@ class DetayKarakter extends StatelessWidget {
               backgroundImage: NetworkImage(karakter.karakter_resim),
               radius: 100,
             ),
+            SizedBox(height: 64,),
             _buildDetaySatir("Status", karakter.karakter_durum),
             _buildDetaySatir("Species", karakter.karakter_tur),
             _buildDetaySatir("Gender", karakter.karakter_tur),
