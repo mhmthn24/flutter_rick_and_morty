@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_rick_and_morty/Detay_Karakter.dart';
 import 'package:flutter_rick_and_morty/Karakter.dart';
 import 'package:http/http.dart';
 
@@ -45,7 +46,22 @@ class _ListelemeKarakterlerState extends State<ListelemeKarakterler> {
     return SafeArea(
       child: Scaffold(
         appBar: _buildAppBar(),
-        body: _buildBody(),
+        body: Stack(
+          children: [
+            Opacity(
+              opacity: 0.2,
+              child: Container(
+                decoration: BoxDecoration(
+                  image: DecorationImage(
+                    image: AssetImage("assets/images/arkaplan.webp"),
+                    fit: BoxFit.cover
+                  )
+                ),
+              ),
+            ),
+            _buildBody()
+          ],
+        ),
       ),
     );
   }
@@ -125,8 +141,28 @@ class _ListelemeKarakterlerState extends State<ListelemeKarakterler> {
     return Card(
       color: Color(0xFF111DAB).withOpacity(0.4),
       child: ListTile(
-        title: Text(listeKarakter[index].karakter_ad, style: TextStyle(color: Colors.white),),
-        leading: CircleAvatar(backgroundImage: NetworkImage(listeKarakter[index].karakter_resim),),
+        title: Text(
+          listeKarakter[index].karakter_ad,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        leading: Image.network(
+          listeKarakter[index].karakter_resim,
+          width: 50,
+          height: 50,
+          fit: BoxFit.cover,
+          loadingBuilder: (context, child, loadingProgress) {
+            if (loadingProgress == null) {
+              return CircleAvatar(backgroundImage: NetworkImage(listeKarakter![index].karakter_resim));
+            }
+            return CircularProgressIndicator(); // ✅ Yüklenene kadar animasyon göster
+          },
+          errorBuilder: (context, error, stackTrace) {
+            return Icon(Icons.error); // ❌ Hata olursa ikon göster
+          },
+        ),
         trailing: IconButton(
           onPressed: (){
             if (listeKarakter != null){
@@ -140,6 +176,11 @@ class _ListelemeKarakterlerState extends State<ListelemeKarakterler> {
             color: Colors.white,
           ),
         ),
+        onTap: (){
+          if(listeKarakter != null){
+            _gitKarakterDetay(context, listeKarakter[index]);
+          }
+        },
       ),
     );
   }
@@ -194,4 +235,10 @@ class _ListelemeKarakterlerState extends State<ListelemeKarakterler> {
     }
   }
 
+  void _gitKarakterDetay(BuildContext context, Karakter karakter){
+    MaterialPageRoute gidilecekSayfaYolu = MaterialPageRoute(builder: (context){
+      return DetayKarakter(karakter);
+    });
+    Navigator.push(context, gidilecekSayfaYolu);
+  }
 }

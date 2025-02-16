@@ -13,7 +13,6 @@ class Karakter{
     karakter_cinsiyet = karakterMap["gender"] ?? "-",
     karakter_resim = karakterMap["image"] ?? "-",
     karakter_tur = karakterMap["species"] ?? "-";
-
 }
 
 /*
